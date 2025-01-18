@@ -1,0 +1,187 @@
+---
+# see https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+# NOTE: comments must have their '#' as the first char on the line
+# else clang-format will produce counterintuitive errors.
+#
+Language:        Cpp
+# BasedOnStyle:  Default
+
+IndentAccessModifiers: false
+AccessModifierOffset: -4
+EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: LogicalBlock
+
+AlignAfterOpenBracket: Align
+AlignArrayOfStructures: Left
+
+#AlignConsecutiveAssignments: AcrossEmptyLines
+#AlignConsecutiveDeclarations: AcrossEmptyLines
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveBitFields: AcrossEmptyLines
+AlignConsecutiveMacros: AcrossEmptyLines
+
+AllowShortCaseLabelsOnASingleLine: true
+IndentCaseBlocks: false
+IndentCaseLabels: false
+
+# unknown in this version of clang-format ??
+#AlignConsecutiveShortCaseStatements: true
+
+AlignEscapedNewlines: Left
+AlignOperands: Align
+
+# note, not a bool anymore in more recent clang-format versions;
+# set to 'Align' when updating to a newer version
+AlignTrailingComments: true
+ReflowComments: true
+
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: false
+
+AllowShortBlocksOnASingleLine: Empty
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+
+# since clang-format18
+#AllowShortCompoundRequirementOnASingleLine = true
+
+AllowShortLambdasOnASingleLine: Empty
+AllowShortLoopsOnASingleLine: true
+
+AlwaysBreakBeforeMultilineStrings: false
+
+BinPackArguments: false
+BinPackParameters: false
+#PackConstructorInitializers: NextLineOnly
+PackConstructorInitializers: NextLine
+
+BreakBeforeBraces: Attach
+BreakBeforeBinaryOperators: None
+BitFieldColonSpacing: After
+
+# since clang-format 17
+#BracedInitializerIndentWidth: 4
+
+# since cf16
+# BreakAfterAttributes: Always
+
+# since cf19
+#BreakAfterReturnType: Automatic
+
+# since cf16
+# BreakArrays: false
+
+# since cf12
+# BreakBeforeConceptDeclarations: Always
+
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
+ConstructorInitializerIndentWidth: 4
+
+BreakStringLiterals: true
+
+# from cf19
+#BreakTemplateDeclarations: Yes
+AlwaysBreakTemplateDeclarations: true
+
+ColumnLimit: 80
+ContinuationIndentWidth: 2
+CompactNamespaces: false
+ShortNamespaceLines: 0
+FixNamespaceComments: true
+Cpp11BracedListStyle: true
+
+SortIncludes: CaseSensitive
+#SortUsingDeclarations: Lexicographic
+SortUsingDeclarations: true
+
+# use Preserve; for Regroup, you should use IncludeCategories
+# so that the headers can be properly sorted. But for Preserve,
+# it is probably good enough without that
+#IncludeBlocks: Regroup
+IncludeBlocks: Preserve
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+IndentExternBlock: NoIndent
+IndentGotoLabels: false
+IndentPPDirectives: None
+
+# since cf15
+#IndentRequiresClause
+
+IndentWrappedFunctionNames: false
+LambdaBodyIndentation: Signature
+NamespaceIndentation: None
+PPIndentWidth: 2
+
+# NOTE: this should be used with caution; see 
+# https://clang.llvm.org/docs/ClangFormatStyleOptions.html#insertbraces
+# since cf15
+#InsertBraces: true
+
+#since cf16
+#InsertNewlineAtEOF: true
+
+#since cf16
+#todo look into it
+#IntegerLiteralSeparator
+
+# since cf16
+# LF => use \n
+#LineEnding LF
+
+#since cf17
+#KeepEmptyLinesAtEOF: false
+
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 3
+
+PointerAlignment: Right
+ReferenceAlignment: Pointer
+QualifierAlignment: Leave
+
+# supposed to work with clang 14 but for some reason it says key unknown
+#QualifierOrder: ['static', 'inline', 'const', 'volatile', 'friend', 'type']
+
+# since cf15
+RequiresClausePosition: OwnLine
+
+# since cf16
+#RequiresExpressionIndentation: OuterScope
+
+# Always will stick to *exactly* one line; I personally like 2 lines
+# in some cases, so perhaps Leave is a better choice here ..
+SeparateDefinitionBlocks: Always
+
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: false
+SpacesBeforeTrailingComments: 2
+SpacesInAngles: Never
+SpacesInSquareBrackets: false
+
+SpacesInLineCommentPrefix:
+  Minimum: 1
+  Maximum: 1
+
+
+
+
+# since cf17
+#SpaceBeforeJsonColon:true
+#VerilogBreakBetweenInstancePorts: true
+

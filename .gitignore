@@ -1,0 +1,6 @@
+build*
+tag*
+build*
+external*
+.cache*
+test.sh

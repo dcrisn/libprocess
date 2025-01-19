@@ -19,6 +19,7 @@ SET(ASIO_GIT_TAG "asio-1-32-0")
 
 FetchContent_Declare(
    asio
+   EXCLUDE_FROM_ALL
    GIT_REPOSITORY  https://github.com/chriskohlhoff/asio/
    GIT_TAG         ${ASIO_GIT_TAG}
    SOURCE_DIR      ${ASIO_SRC_ROOT_DIR}
@@ -30,8 +31,11 @@ FetchContent_MakeAvailable(asio)
 # anything. The target is virtual in the sense that we merely set some
 # key-value properties so that other targets can use the usual cmake calls
 # against this library.
+# The headers are marked as 'system' to prevent noisy warnings that we can do
+# nothing about here.
 add_library(asio INTERFACE)
-target_include_directories(asio INTERFACE 
+target_include_directories(asio SYSTEM
+    INTERFACE
     $<INSTALL_INTERFACE:include/>
     $<BUILD_INTERFACE:${ASIO_INCLUDE_DIR}>
 )
@@ -48,6 +52,7 @@ SET(DOCTEST_GIT_TAG "v2.4.11")
 if (BUILD_TESTS)
     FetchContent_Declare(
        doctest
+       EXCLUDE_FROM_ALL
        GIT_REPOSITORY  https://github.com/doctest/doctest/
        GIT_TAG         ${DOCTEST_GIT_TAG}
        SOURCE_DIR      ${DOCTEST_SRC_ROOT_DIR}

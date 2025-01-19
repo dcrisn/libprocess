@@ -29,9 +29,7 @@ add_compile_options(
     -Wstrict-aliasing
     -fdiagnostics-color=always
     -Wno-format-truncation
-
-    # asio triggers a lot of warnings, so it ends up being noisy
-    #-Wold-style-cast
+    -Wold-style-cast
 )
 
 add_definitions(

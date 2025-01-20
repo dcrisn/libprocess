@@ -127,7 +127,7 @@ std::pair<bool, std::string> subprocess::wait() {
         finished = true;
     };
 
-    m_ioctx.reset();
+    m_ioctx.restart();
 
     auto [ok, e] = run();
     if (!ok) {
@@ -248,6 +248,7 @@ void subprocess::arm_killer(std::chrono::milliseconds time_limit) {
         }
 
         kill_and_reap_child();
+        kill_and_reap_group();
         emit_exit_signal();
     });
 }
@@ -386,6 +387,7 @@ void subprocess::arm_reaper() {
         std::swap(m_child_pid, pid);
 
         std::cerr << "Child (pid="s + std::to_string(pid) + ") reaped.\n";
+        kill_and_reap_group();
         emit_exit_signal();
     });
 }
@@ -396,7 +398,7 @@ void subprocess::async_terminate() {
         return;
     }
 
-    arm_killer(1ms);
+    arm_killer(0ms);
 }
 
 void subprocess::terminate() {
@@ -439,15 +441,16 @@ void subprocess::kill_and_reap_group() {
     // terminate.
     // - we send SIGKILL to the group we vacated.
 
-    // group this process is currently in, which contains this process and all
-    // its descendants (unless they have changed their group).
+    // the group this process is currently in, which contains this process
+    // and all its descendants (unless they have changed their group).
+
     pid_t old_group = ::getpgid(getpid());
 
     // group of the parent of this process
-    pid_t new_group = ::getppid();
+    pid_t new_group = ::getpgid(::getppid());
 
     // called in the past already.
-    if (old_group == new_group) {
+    if (new_group == old_group) {
         return;
     }
 
@@ -473,8 +476,9 @@ void subprocess::kill_and_reap_group() {
     // status of the processes we reap. The direct child (m_child_pid) would've
     // been killed and reaped separately of what we do here. So at this point
     // we don't need the information, we are just cleaning up after ourselves
-    // and preventing zombies.
+    // to prevent zombies.
     int ret = 0;
+    // continue until either no children are left or we run into an error.
     while (true) {
         ret = waitpid(-1, nullptr, WNOHANG);
 
@@ -487,8 +491,12 @@ void subprocess::kill_and_reap_group() {
                    getpid())
               << std::endl;
         }
-        // continue until either no children are left or we run into an error.
+        // children exist but have not changed state. We just killed everything
+        // so this should never happen.
         else if (ret == 0) {
+            std::cerr << "Children exist in group with pgid " << old_group
+                      << " but have not changed state (unexpected) ..."
+                      << std::endl;
             break;
         } else if (ret == -1) {
             if (errno != ECHILD) {

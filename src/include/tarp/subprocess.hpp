@@ -18,7 +18,7 @@
 #include <asio/steady_timer.hpp>
 
 namespace tarp {
-namespace subprocess {
+namespace process {
 
 // NOTE: the asio version used in fact already has readable_pipe and
 // writable_pipe, but we keep the old interface written here to minimize
@@ -331,10 +331,28 @@ struct stream_config_tuple {
 // it will create a readable_pipe and connect it to the writable_pipe. The
 // child process will then use the readable_pipe end to read what is written
 // via the writable_pipe end.
+//
+// NOTE: the subprocess created in the system is bound in lifetime to the class;
+// if a process was spawned, it will be terminated when the subprocess class
+// destructor is invoked. If this is not desirable, then the process should
+// detach itself by daemonizing.
 class subprocess {
 public:
     using envmap_t = std::map<std::string, std::string>;
     using stream_config_tuple_t = stream_config_tuple;
+
+    template<typename... vargs>
+    static std::pair<std::unique_ptr<subprocess>, std::string>
+    make(vargs &&...args) {
+        std::unique_ptr<subprocess> proc;
+        try {
+            proc = std::make_unique<subprocess>(std::forward<vargs>(args)...);
+            return {std::move(proc), ""};
+        } catch (const std::exception &e) {
+            using namespace std::string_literals;
+            return {nullptr, "failed to construct subprocess: "s + e.what()};
+        }
+    }
 
     subprocess(asio::io_context &ioctx,
                const std::vector<std::string> &cmdspec,
@@ -414,6 +432,7 @@ private:
     void kill_and_reap_group();
 
     pid_t get_pid() const { return m_child_pid; }
+
     void emit_exit_signal();
 
 private:

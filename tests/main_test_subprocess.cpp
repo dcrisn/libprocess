@@ -22,7 +22,7 @@ using namespace std;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
 
-namespace proc = tarp::subprocess;
+namespace proc = tarp::process;
 namespace string_utils = tarp::utils::string_utils;
 namespace fs = std::filesystem;
 

@@ -12,9 +12,11 @@ SET(public_headers
 
 add_library(libprocess SHARED
     subprocess.cpp
+    demonic.cpp
 
     # copied from libtarp to avoid depending on it.
     ioutils.cxx
+    string_utils.cxx
 )
 
 add_library(tarp::process ALIAS libprocess)

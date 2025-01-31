@@ -1,5 +1,6 @@
 // local project
 #include "ioutils.hxx"
+#include "string_utils.hxx"
 #include "tarp/subprocess.hpp"
 
 
@@ -19,11 +20,12 @@ extern "C" {
 #include <fmt/format.h>
 
 namespace tarp {
-namespace subprocess {
+namespace process {
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
 namespace ioutils = tarp::utils::ioutils;
+namespace string_utils = tarp::utils::string_utils;
 
 namespace {
 // NOTE: v AND its contents must always outlast cmd, otherwise you will get
@@ -466,9 +468,13 @@ void subprocess::kill_and_reap_group() {
     std::cerr << "changed pgid from " << old_group << " to "
               << ::getpgid(getpid()) << std::endl;
 
+    std::cerr << "Process with pid " << getpid() << " ppid " << getppid()
+              << " pgid " << getpgid(getpid()) << " killing group with pgid "
+              << old_group << std::endl;
+
     if (killpg(old_group, SIGKILL) < 0) {
         std::cerr << "Failed to send SIGKILL to process group with pgid="
-                  << old_group << std::endl;
+                  << old_group << ": " << strerror(errno) << std::endl;
         return;
     }
 
@@ -508,5 +514,5 @@ void subprocess::kill_and_reap_group() {
     }
 }
 
-}  // namespace subprocess
+}  // namespace process
 }  // namespace tarp

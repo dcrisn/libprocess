@@ -1,6 +1,5 @@
 // local project
 #include "ioutils.hxx"
-#include "string_utils.hxx"
 #include "tarp/subprocess.hpp"
 
 
@@ -25,7 +24,6 @@ namespace process {
 using namespace std::chrono_literals;
 using namespace std::string_literals;
 namespace ioutils = tarp::utils::ioutils;
-namespace string_utils = tarp::utils::string_utils;
 
 namespace {
 // NOTE: v AND its contents must always outlast cmd, otherwise you will get
@@ -206,29 +204,64 @@ std::pair<bool, std::string> subprocess::fork_and_exec() {
     }
 
     if (child_pid > 0) {
-        m_child_pid = child_pid;
+        m_child_pid = m_child_pgid = child_pid;
         // std::cerr << "child pid set to " << m_child_pid << std::endl;
         return {true, ""};
     }
 
+    //
     // ===== in child =====
-    auto maybe_duplicate =
-      [](int description_to_use, auto stream_fd, auto errmsg) {
-          // if < 0, the intention is to do nothing, leave stream as is.
-          if (description_to_use < 0) {
-              return;
-          }
-          auto [ok, e] = ioutils::duplicate_fd(description_to_use, stream_fd);
-          if (!ok) {
-              std::cerr << errmsg << ": " << e << std::endl;
-          }
-      };
+    //
+
+    // move this child out of the process group of the parent process
+    // and to its own process group (same pgid as its pid), for
+    // job control purposes.
+    const pid_t old_group = ::getpgid(getpid());
+    const pid_t new_group = getpid();
+
+    std::cerr << "new group: " << new_group << std::endl;
+
+    if (::setpgid(::getpid(), new_group) < 0) {
+        std::cerr << "Failed to change process group id from " << old_group
+                  << " to " << new_group << ": " << strerror(errno)
+                  << std::endl;
+    }
+
+    std::cerr << "changed pgid from " << old_group << " to "
+              << ::getpgid(getpid()) << std::endl;
+
+    //
+
+    auto maybe_duplicate = [](int description_to_use,
+                              auto stream_fd,
+                              auto errmsg) {
+        // if < 0, the intention is to do nothing, leave stream as is.
+        if (description_to_use < 0) {
+            return;
+        }
+        bool ok = false;
+        std::string e;
+        std::tie(ok, e) = ioutils::duplicate_fd(description_to_use, stream_fd);
+        if (!ok) {
+            std::cerr << errmsg << ": " << e << std::endl;
+        }
+    };
 
     maybe_duplicate(m_instream.get_fd(), STDIN_FILENO, "failed to dup stdin");
     maybe_duplicate(
       m_outstream.get_fd(), STDOUT_FILENO, "failed to dup stdout");
     maybe_duplicate(
       m_errstream.get_fd(), STDERR_FILENO, "failed to dup stderr");
+
+    // Close all fds other than the standard streams.
+    const auto max_fds = sysconf(_SC_OPEN_MAX);
+    if (max_fds < 0) {
+        std::cerr << "sysconf(SC_OPEN_MAX) error:" << strerror(errno)
+                  << std::endl;
+    }
+    for (int fd = STDERR_FILENO + 1; fd < max_fds; ++fd) {
+        ::close(fd);
+    }
 
     populate_environment();
 
@@ -388,7 +421,8 @@ void subprocess::arm_reaper() {
         int pid = -1;
         std::swap(m_child_pid, pid);
 
-        std::cerr << "Child (pid="s + std::to_string(pid) + ") reaped.\n";
+        std::cerr << "Child (pid="s + std::to_string(pid) + ") reaped: "
+                  << get_exit_status_string() << std::endl;
         kill_and_reap_group();
         emit_exit_signal();
     });
@@ -433,48 +467,22 @@ void subprocess::populate_environment() {
 }
 
 void subprocess::kill_and_reap_group() {
-    // the child we forked, as well as all its children, if any, (unless they
-    // have changed their groups) will have the same process group id as the
-    // current process. We want to kill and reap the entire group with the
-    // exception of the current process. The way that we do it here is:
-    // - we move the current process out of its own group into the group of its
-    // parent
-    // - the former group will now contain all the process we want and need to
-    // terminate.
-    // - we send SIGKILL to the group we vacated.
-
-    // the group this process is currently in, which contains this process
-    // and all its descendants (unless they have changed their group).
-
-    pid_t old_group = ::getpgid(getpid());
-
-    // group of the parent of this process
-    pid_t new_group = ::getpgid(::getppid());
-
-    // called in the past already.
-    if (new_group == old_group) {
+    if (m_child_pgid < 0) {
         return;
     }
 
-    std::cerr << "new group: " << new_group << std::endl;
-
-    if (::setpgid(::getpid(), new_group) < 0) {
-        std::cerr << "Failed to change process group id from " << old_group
-                  << " to " << new_group << ": " << strerror(errno)
-                  << std::endl;
-        return;
-    }
-
-    std::cerr << "changed pgid from " << old_group << " to "
-              << ::getpgid(getpid()) << std::endl;
+    std::cerr << std::format("called kill_and_reap_group, pgid={}, this={}",
+                             m_child_pgid,
+                             static_cast<void *>(this))
+              << std::endl;
 
     std::cerr << "Process with pid " << getpid() << " ppid " << getppid()
               << " pgid " << getpgid(getpid()) << " killing group with pgid "
-              << old_group << std::endl;
+              << m_child_pgid << std::endl;
 
-    if (killpg(old_group, SIGKILL) < 0) {
+    if (killpg(m_child_pgid, SIGKILL) < 0) {
         std::cerr << "Failed to send SIGKILL to process group with pgid="
-                  << old_group << ": " << strerror(errno) << std::endl;
+                  << m_child_pgid << ": " << strerror(errno) << std::endl;
         return;
     }
 
@@ -486,21 +494,21 @@ void subprocess::kill_and_reap_group() {
     int ret = 0;
     // continue until either no children are left or we run into an error.
     while (true) {
-        ret = waitpid(-1, nullptr, WNOHANG);
+        ret = waitpid(-(m_child_pgid), nullptr, WNOHANG);
 
         if (ret > 0) {
-            std::cerr
-              << std::format(
-                   "Child (pid {}, pgid {}) reaped by process with pid {}",
-                   ret,
-                   old_group,
-                   getpid())
-              << std::endl;
+            std::cerr << std::format("Child (pid {}, pgid {}) reaped by "
+                                     "process with pid {} in this={}",
+                                     ret,
+                                     m_child_pid,
+                                     m_child_pgid,
+                                     static_cast<void *>(this))
+                      << std::endl;
         }
         // children exist but have not changed state. We just killed everything
         // so this should never happen.
         else if (ret == 0) {
-            std::cerr << "Children exist in group with pgid " << old_group
+            std::cerr << "Children exist in group with pgid " << m_child_pgid
                       << " but have not changed state (unexpected) ..."
                       << std::endl;
             break;
@@ -512,6 +520,8 @@ void subprocess::kill_and_reap_group() {
             break;
         }
     }
+
+    m_child_pgid = -1;
 }
 
 }  // namespace process

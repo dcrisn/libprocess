@@ -388,6 +388,8 @@ public:
     // Send a SIGINT to the child process.
     std::pair<bool, std::string> interrupt();
 
+    auto pid() const { return m_child_pid; }
+
     // Get the exit code of the process. NOTE: this is only meaningful
     // if the process exited normally, so the caller should also check killed().
     int get_exit_code() const;
@@ -446,7 +448,16 @@ private:
     asio::steady_timer m_deadline {m_ioctx};
     asio::steady_timer m_reap_timer {m_ioctx};
 
+    // pid of the child process we forked.
     int m_child_pid = -1;
+
+    // The process group id of the child (and any children it spawns,
+    // unless they change their groups). After forking, we move the
+    // child process out of the current process group to its own
+    // process group. We do this for job control so that we can
+    // unambiguously kill and reap all the processes in that group
+    // only, without interfering with other groups.
+    int m_child_pgid = -1;
 
     const std::vector<std::string> m_cmdspec;
     const std::map<std::string, std::string> m_envspec;
@@ -463,5 +474,5 @@ private:
     int m_exit_code = -1;
 };
 
-}  // namespace subprocess
+}  // namespace process
 }  // namespace tarp

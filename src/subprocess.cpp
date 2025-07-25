@@ -16,8 +16,6 @@ extern "C" {
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
 
-#include <fmt/format.h>
-
 namespace tarp {
 namespace process {
 
